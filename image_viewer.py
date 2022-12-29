@@ -7,7 +7,7 @@ import os
 
 
 class ImageViewer(tk.Frame):
-    image_file_types = '.bmp .png .jpg .tif'
+    IMAGE_FILE_TYPES = '.bmp .png .jpg .tif'
 
     def __init__(self, master=None):
         super().__init__(master)
@@ -94,7 +94,7 @@ class ImageViewer(tk.Frame):
     # ------------------------------
     # menu
 
-    def create_menu(self):
+    def create_menu(self, event=None):
         self.menu_bar = tk.Menu(self)
 
         # File
@@ -120,9 +120,9 @@ class ImageViewer(tk.Frame):
         # -----
         self.master.config(menu=self.menu_bar)
 
-    def menu_open(self):
+    def menu_open(self, event=None):
         filename = tk.filedialog.askopenfilename(
-            filetypes=[("Image file", ImageViewer.image_file_types),
+            filetypes=[("Image file", ImageViewer.IMAGE_FILE_TYPES),
                        ("Bitmap", ".bmp"),
                        ("PNG", ".png"),
                        ("JPEG", ".jpg"),
@@ -135,17 +135,17 @@ class ImageViewer(tk.Frame):
         self.image_pillow = self.image_read_for_pillow(filename)
         self.show_fit_image()
 
-    def menu_quit(self):
+    def menu_quit(self, event=None):
         self.master.destroy()
 
-    def menu_fit(self):
+    def menu_fit(self, event=None):
         self.show_fit_image()
 
-    def menu_grid(self):
+    def menu_grid(self, event=None):
         # print(f'menu grid = {self.show_grid.get()}')
         self.draw_grid(self.show_grid.get())
 
-    def menu_grid_shortcut(self):
+    def menu_grid_shortcut(self, event=None):
         self.show_grid.set(not self.show_grid.get())
         self.menu_grid()
 
@@ -158,7 +158,7 @@ class ImageViewer(tk.Frame):
             if os.path.isfile(f):
                 fsplit = os.path.splitext(f)
                 ext = fsplit[len(fsplit) - 1].lower()
-                if ext in ImageViewer.image_file_types:
+                if ext in ImageViewer.IMAGE_FILE_TYPES:
                     self.image_pillow = self.image_read_for_pillow(f)
                     self.show_fit_image()
                     return
