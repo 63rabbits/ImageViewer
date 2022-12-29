@@ -10,3 +10,7 @@ Image viewer made with python.
 | zoom-up/out image           | mouse right button + wheel / control + wheel |
 | fit the image to the window | double click with mouse left button          |
 | show grid                   |                                              |
+
+## Problem
+- Poor zoom performance.
+- Grid does not support window resizing.
