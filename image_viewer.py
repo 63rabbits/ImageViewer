@@ -29,15 +29,9 @@ class ImageViewer(tk.Frame):
         self.image_tk = None
         self.image_id = 0
         self.image_scale = 1.0
-        self.image_allow_drag = False
-        self.image_allow_zoom = False
+        self.drag_widget_id = 0
 
         self.mouse_left_down_pos = None
-        self.mouse_right_down_pos = None
-        self.mouse_left_hold = False
-        self.mouse_right_hold = False
-
-        self.key_control_hold = False
 
         # color reference :
         # https://memopy.hatenadiary.jp/entry/2017/06/11/092554
@@ -79,17 +73,21 @@ class ImageViewer(tk.Frame):
         self.canvas.pack(expand=True, fill=tk.BOTH)
 
         # mouse events
-        self.canvas.bind("<Motion>", self.mouse_move)  # mouse move
-        self.canvas.bind("<B1-Motion>", self.mouse_left_move)  # drag mouse while holding down the left button
-        self.canvas.bind("<Button-1>", self.mouse_left_down)  # down the left button
-        self.canvas.bind("<ButtonRelease-1>", self.mouse_left_release)  # release the left button
-        self.canvas.bind("<Double-Button-1>", self.mouse_left_double_click)  # double click the left button
+        self.canvas.bind("<B1-Motion>", self.mouse_left_move)   # drag while holding down the mouse left button
 
-        self.canvas.bind("<Button-3>", self.mouse_right_down)  # down the right button
-        self.canvas.bind("<ButtonRelease-3>", self.mouse_right_release)  # release the right button
-        self.canvas.bind("<Double-Button-3>", self.mouse_right_double_click)  # double click the right button
+        self.canvas.bind("<Button-1>", self.mouse_left_down)    # down the mouse left button
+        self.canvas.bind("<ButtonRelease-1>", self.mouse_left_release)          # release the mouse left button
+        self.canvas.bind("<Double-Button-1>", self.mouse_left_double_click)     # double click the mouse left button
 
-        self.canvas.bind("<MouseWheel>", self.mouse_wheel)  # mouse wheel
+        self.canvas.bind("<Button-3>", self.mouse_right_down)  # down the mouse right button
+        self.canvas.bind("<ButtonRelease-3>", self.mouse_right_release)  # release the mouse right button
+
+        self.canvas.bind("<B3-MouseWheel>", self.mouse_wheel)   # mouse wheel-up while holding down the mouse right button
+        self.canvas.bind("<Control-MouseWheel>", self.mouse_wheel)  # mouse wheel-up while holding down the control button
+
+        # #  For mouse wheel support under Linux, use Button-4 (scroll up) and Button-5 (scroll down)
+        # self.canvas.bind("<Button-4>", self.mouse_wheel)  # mouse wheel
+        # self.canvas.bind("<Button-5>", self.mouse_wheel)  # mouse wheel
 
     # ------------------------------
     # menu
@@ -133,6 +131,7 @@ class ImageViewer(tk.Frame):
         if filename == '': return  # for when click the cancel button
 
         self.image_pillow = self.image_read_for_pillow(filename)
+        self.set_image()
         self.show_fit_image()
 
     def menu_quit(self, event=None):
@@ -142,7 +141,6 @@ class ImageViewer(tk.Frame):
         self.show_fit_image()
 
     def menu_grid(self, event=None):
-        # print(f'menu grid = {self.show_grid.get()}')
         self.draw_grid(self.show_grid.get())
 
     def menu_grid_shortcut(self, event=None):
@@ -160,6 +158,7 @@ class ImageViewer(tk.Frame):
                 ext = fsplit[len(fsplit) - 1].lower()
                 if ext in ImageViewer.IMAGE_FILE_TYPES:
                     self.image_pillow = self.image_read_for_pillow(f)
+                    self.set_image()
                     self.show_fit_image()
                     return
             # elif os.path.isdir(f):
@@ -181,55 +180,37 @@ class ImageViewer(tk.Frame):
     # ------------------------------
     # mouse
 
-    def mouse_move(self, event=None):
-        pass
-
     def mouse_left_move(self, event=None):
-        if self.image_id <= 0: return
-        if not self.image_allow_drag: return
+        if self.drag_widget_id <= 0: return
 
         dx = event.x - self.mouse_left_down_pos.x
         dy = event.y - self.mouse_left_down_pos.y
-        ul_x, ul_y, _, _ = self.canvas.bbox(self.image_id)
-        self.show_image(self.image_scale, ul_x + dx, ul_y + dy)
+        self.canvas.move(self.drag_widget_id, dx, dy)
 
         self.mouse_left_down_pos = event
 
     def mouse_left_down(self, event=None):
         self.mouse_left_down_pos = event
-        self.mouse_left_hold = True
-        if self.is_mouse_overlap_image(event.x, event.y):
-            self.image_allow_drag = True
+        self.drag_widget_id = self.overlapped_frontmost_widget(event.x, event.y)
 
     def mouse_left_release(self, event=None):
-        self.mouse_left_hold = False
-        self.image_allow_drag = False
+        self.drag_widget_id = 0
 
     def mouse_left_double_click(self, event=None):
         if self.image_id <= 0: return
-        if not self.is_mouse_overlap_image(event.x, event.y):
-            return
+        if not self.is_mouse_overlap_image(event.x, event.y): return
 
         self.show_fit_image()
 
     def mouse_right_down(self, event=None):
-        self.mouse_right_down_pos = event
-        self.mouse_right_hold = True
-        # if self.is_mouse_overlap_image(event.x, event.y):
-        #     self.image_allow_zoom = True
+        # self.mouse_right_down_pos = event
+        pass
 
     def mouse_right_release(self, event=None):
-        self.mouse_right_hold = False
-        self.image_allow_zoom = False
-
-    def mouse_right_double_click(self, event=None):
         pass
 
     def mouse_wheel(self, event=None):
-        if not self.image_allow_zoom:
-            if not self.mouse_right_hold and not self.key_control_hold: return
-            if not self.is_mouse_overlap_image(event.x, event.y): return
-            self.image_allow_zoom = True
+        if not self.is_mouse_overlap_image(event.x, event.y): return
 
         if event.delta < 0:
             self.show_zoom_image(0.8, event.x, event.y)
@@ -252,14 +233,19 @@ class ImageViewer(tk.Frame):
             if self.image_id == i: return True
         return False
 
+    def overlapped_frontmost_widget(self, x, y):
+        overlaped_ids = self.canvas.find_overlapping(x, y, x, y)
+        for i in reversed(overlaped_ids):
+            tag = self.canvas.itemcget(i, 'tags')
+            if self.TAG_GRID not in tag: return i
+        return 0
+
     # ------------------------------
     # key
 
     def key_down(self, event=None):
         if event.keysym == 'Control_L' or event.keysym == 'Control_R':
             self.key_control_hold = True
-            # if self.is_mouse_overlap_image(event.x, event.y):
-            #     self.image_allow_zoom = True
 
     def key_release(self, event=None):
         if event.keysym == 'Control_L' or event.keysym == 'Control_R':
@@ -276,13 +262,12 @@ class ImageViewer(tk.Frame):
         # draw grid
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
-        # dash_pattern = (1, 1)
         for i in range(0, w, self.GRID_INTERVAL):
             # v-line
-            self.canvas.create_line(i, 0, i, h, fill='red', tags=self.TAG_GRID)     # dash=dash_pattern
+            self.canvas.create_line(i, 0, i, h, fill='red', tags=self.TAG_GRID)
         for i in range(0, h, self.GRID_INTERVAL):
             # h-line
-            self.canvas.create_line(0, i, w, i, fill='red', tags=self.TAG_GRID)     # dash=dash_pattern
+            self.canvas.create_line(0, i, w, i, fill='red', tags=self.TAG_GRID)
 
     @staticmethod
     def get_image_fit_param(canvas, image_pillow):
@@ -312,6 +297,18 @@ class ImageViewer(tk.Frame):
 
         self.show_image(rescale, offset_x, offset_y)
 
+    def set_image(self):
+        self.image_tk = self.image_pillow_to_tk(self.image_pillow)
+        if self.image_id > 0:
+            self.canvas.delete(self.image_id)
+        self.image_id = self.canvas.create_image(
+            0,
+            0,
+            image=self.image_tk,
+            anchor='nw',
+            tags=self.TAG_IMAGE
+        )
+
     def show_image(self, scale=1.0, offset_x=0, offset_y=0):
         if self.image_pillow is None: return
         if scale > self.MAX_SCALE: scale = self.MAX_SCALE
@@ -324,7 +321,15 @@ class ImageViewer(tk.Frame):
         self.image_scale = scale
         image = self.image_pillow
         if self.image_scale != 1.0:
-            image = self.image_pillow.resize((zoom_width, zoom_height))
+            # image = self.image_pillow.resize((zoom_width, zoom_height))
+            affine_tuple = (1/self.image_scale, 0, 0,
+                            0, 1/self.image_scale, 0,
+                            0, 0, 1)
+            image = self.image_pillow.transform(
+                                                    (zoom_width, zoom_height),
+                                                    Image.Transform.AFFINE,
+                                                    affine_tuple
+                                                )
 
         # show image
         self.image_tk = self.image_pillow_to_tk(image)
@@ -338,7 +343,7 @@ class ImageViewer(tk.Frame):
             tags=self.TAG_IMAGE
         )
 
-        # grid
+        # redraw grid for zoom
         self.draw_grid(self.show_grid.get())
 
     # ------------------------------
