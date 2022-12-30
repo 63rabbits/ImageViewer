@@ -1,4 +1,3 @@
-import tkinter as tk
 import image_viewer as iv
 from tkinterdnd2 import *
 
