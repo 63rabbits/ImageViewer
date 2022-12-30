@@ -20,4 +20,4 @@ To improve the performance, the image size should be the same as that of the Can
 Since this is a major revision, we will release the revised version as a separate version. When the work is completed, we will post the link here.  
 For those in a hurry, please refer [here](https://gist.github.com/ImagingSolution/bf7d9b348a2cc31c300ebb080171150b#file-imageviewer-py) or [here](https://imagingsolution.net/program/python/tkinter/python_tkinter_image_viewer/).
 
-- Grid does not support window resizing.
+- ~~Grid does not support window resizing.~~
