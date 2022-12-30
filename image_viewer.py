@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import filedialog
 import tkinterdnd2 as dnd
 from PIL import Image, ImageTk
+# import numpy as np
 import re
 import os
 
@@ -22,8 +23,10 @@ class ImageViewer(tk.Frame):
         self.GRID_INTERVAL = 50
 
         self.canvas = None
+        self.canvas_conf = None
 
-        self.show_grid = tk.BooleanVar(False)
+        self.show_grid = tk.BooleanVar()
+        self.show_grid.set(False)
 
         self.image_pillow = None
         self.image_tk = None
@@ -60,9 +63,10 @@ class ImageViewer(tk.Frame):
         # widget
         self.create_widget()
 
-        # monitor held keys
-        master.bind("<Key>", self.key_down)
-        master.bind("<KeyRelease>", self.key_release)
+        # - No longer needed due to improvements, but will be commented out for posterity. -
+        # # monitor held keys
+        # master.bind("<Key>", self.key_down)
+        # master.bind("<KeyRelease>", self.key_release)
 
     # ------------------------------
     # widget
@@ -85,9 +89,12 @@ class ImageViewer(tk.Frame):
         self.canvas.bind("<B3-MouseWheel>", self.mouse_wheel)   # mouse wheel-up while holding down the mouse right button
         self.canvas.bind("<Control-MouseWheel>", self.mouse_wheel)  # mouse wheel-up while holding down the control button
 
+        # - under consideration -
         # #  For mouse wheel support under Linux, use Button-4 (scroll up) and Button-5 (scroll down)
         # self.canvas.bind("<Button-4>", self.mouse_wheel)  # mouse wheel
         # self.canvas.bind("<Button-5>", self.mouse_wheel)  # mouse wheel
+
+        self.canvas.bind("<Configure>", self.canvas_resize)
 
     # ------------------------------
     # menu
@@ -203,7 +210,6 @@ class ImageViewer(tk.Frame):
         self.show_fit_image()
 
     def mouse_right_down(self, event=None):
-        # self.mouse_right_down_pos = event
         pass
 
     def mouse_right_release(self, event=None):
@@ -212,14 +218,13 @@ class ImageViewer(tk.Frame):
     def mouse_wheel(self, event=None):
         if not self.is_mouse_overlap_image(event.x, event.y): return
 
-        if event.delta < 0:
-            self.show_zoom_image(0.8, event.x, event.y)
-        else:
-            self.show_zoom_image(1.25, event.x, event.y)
+        if event.delta < 0: self.show_zoom_image(0.8, event.x, event.y)
+        else:               self.show_zoom_image(1.25, event.x, event.y)
 
     def is_mouse_overlap_image(self, x, y):
-        # self.update()
 
+        # - No longer needed due to improvements, but will be commented out for posterity. -
+        #
         # # the frontmost object has tag "current" after calling find_overlapping().
         # overlaped_ids = self.canvas.find_overlapping(x, y, x, y)
         # frontmost_id = self.canvas.find_withtag("current")
@@ -243,14 +248,30 @@ class ImageViewer(tk.Frame):
     # ------------------------------
     # key
 
-    def key_down(self, event=None):
-        if event.keysym == 'Control_L' or event.keysym == 'Control_R':
-            self.key_control_hold = True
+    # - No longer needed due to improvements, but will be commented out for posterity. -
+    #
+    # def key_down(self, event=None):
+    #     if event.keysym == 'Control_L' or event.keysym == 'Control_R':
+    #         self.key_control_hold = True
+    #
+    # def key_release(self, event=None):
+    #     if event.keysym == 'Control_L' or event.keysym == 'Control_R':
+    #         self.key_control_hold = False
 
-    def key_release(self, event=None):
-        if event.keysym == 'Control_L' or event.keysym == 'Control_R':
-            self.key_control_hold = False
-            self.image_allow_zoom = False
+    # ------------------------------
+    # canvas
+
+    def canvas_resize(self, event=None):
+        if self.canvas_conf is None:
+            self.canvas_conf = event
+
+        dx = (event.width - self.canvas_conf.width) // 2
+        dy = (event.height - self.canvas_conf.height) // 2
+        self.canvas.move(self.image_id, dx, dy)
+
+        self.canvas_conf = event
+
+        self.draw_grid(self.show_grid.get())
 
     # ------------------------------
     # image
@@ -302,12 +323,12 @@ class ImageViewer(tk.Frame):
         if self.image_id > 0:
             self.canvas.delete(self.image_id)
         self.image_id = self.canvas.create_image(
-            0,
-            0,
-            image=self.image_tk,
-            anchor='nw',
-            tags=self.TAG_IMAGE
-        )
+                                                    0,
+                                                    0,
+                                                    image=self.image_tk,
+                                                    anchor='nw',
+                                                    tags=self.TAG_IMAGE
+                                                )
 
     def show_image(self, scale=1.0, offset_x=0, offset_y=0):
         if self.image_pillow is None: return
@@ -321,15 +342,19 @@ class ImageViewer(tk.Frame):
         self.image_scale = scale
         image = self.image_pillow
         if self.image_scale != 1.0:
-            # image = self.image_pillow.resize((zoom_width, zoom_height))
-            affine_tuple = (1/self.image_scale, 0, 0,
-                            0, 1/self.image_scale, 0,
-                            0, 0, 1)
-            image = self.image_pillow.transform(
-                                                    (zoom_width, zoom_height),
-                                                    Image.Transform.AFFINE,
-                                                    affine_tuple
-                                                )
+            image = self.image_pillow.resize((zoom_width, zoom_height))
+            # affine = np.array([
+            #                     [self.image_scale, 0, 0],
+            #                     [0, self.image_scale, 0],
+            #                     [0, 0, 1]
+            #                 ])
+            # affine_inv = np.linalg.inv(affine)
+            # affine_tuple = tuple(affine_inv.flatten())
+            # image = self.image_pillow.transform(
+            #                                         (zoom_width, zoom_height),
+            #                                         Image.Transform.AFFINE,
+            #                                         affine_tuple
+            #                                     )
 
         # show image
         self.image_tk = self.image_pillow_to_tk(image)
