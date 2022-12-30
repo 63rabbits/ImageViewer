@@ -18,6 +18,6 @@ Image viewer made with python.
   - When using Pillow's `Image.resize(...)`, performance deteriorates as the image zoom rate increases. This is because the entire image is enlarged and the displayed portion is cropped. The processing time for the parts that are not displayed is wasted.  
 To improve the performance, the image size should be the same as that of the Canvas and ***affine transformation*** should be performed using `Image.transform(...)`. My guess is that only the part of the image to be displayed is processed, so the processing time is reduced. However, it is necessary to modify the program to include ***dragging (translation)***.  
 Since this is a major revision, we will release the revised version as a separate version. When the work is completed, we will post the link here.  
-For those in a hurry, please refer [here](https://gist.github.com/ImagingSolution/bf7d9b348a2cc31c300ebb080171150b#file-imageviewer-py).
+For those in a hurry, please refer [here](https://gist.github.com/ImagingSolution/bf7d9b348a2cc31c300ebb080171150b#file-imageviewer-py) or [here](https://imagingsolution.net/program/python/tkinter/python_tkinter_image_viewer/).
 
 - Grid does not support window resizing.
